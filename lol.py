@@ -12,13 +12,20 @@
 
 # START SIMULATION
 import random
+# from main import LoonBalloons
 
-cell_radius = data.V;
-world_map = {R: , C: , A: }
-balloons = [{position: (x,y), altitude: A}, {position: (x,y), altitude: A},]
-targetCells = [(x,y), (x,y),]
-activeTargetCells = { balloon_id: (x,y), balloon_id: (x,y) ... }
-active_balloons = { balloon_id: (cell_position),  }
+# data = LoonBalloons().process()
+
+T = 1000
+# cell_radius = data.V;
+cell_radius = 5
+# world_map = {R: data['R'], C: data['C'], A: data['A']}
+world_map = {R: 10, C: 10, A: 10}
+balloons = [{position: (0,0), altitude: 0, balloon_id: 0}, {position: (0,0), altitude: 0, balloon_id: 1}, {position: (0,0), altitude: 0, balloon_id: 2}]
+# targetCells = [(x,y), (x,y),]
+targetCells = [(3,2), (9,4)]
+activeTargetCells = { }
+active_balloons = { }
 wind = [[[(0,1), (-1,2)], [(0,1), (-1,2)] ], [[(0,1), (-1,2)], [(0,1), (-1,2)] ]]
 output = file.open(output.txt, 'w')
 
@@ -39,7 +46,7 @@ def make_target_cell_map(targetCells, cell_radius, target_cell_map, world_map):
 	for cell in targetCells:
 		for i in range(cell[0] - cell_radius, cell[0] + cell_radius):
 			for j in range(cell[1] - cell_radius, cell[1] + cell_radius):
-				if(in_range((i,j), cell))
+				if(in_range((i,j), cell)):
 					target_cell_map[i][j] = cell
 
 def update_position(balloon, wind, world_map):
@@ -65,7 +72,7 @@ def exclusively_over_valid_region(balloon, balloon_id, activeTargetCells, target
 		if(balloon_id in active_balloons):
 			if(active_balloons.balloon_id == target):
 				return true
-		else false
+		else: false
 	else:
 		activeTargetCells[target] = balloon_id
 		active_balloons[balloon_id] = target
