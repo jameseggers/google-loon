@@ -16,11 +16,11 @@ class LoonBalloons:
 
     def storeBalloons(self):
         for balloon_id in range(1, self.params['B']):
-            self.params.append(
+            self.balloons.append(
             {
-                position: self.params['startingCell'],
-                altitude: 0,
-                balloon_id: balloon_id
+                "position": self.params['startingCell'],
+                "altitude": 0,
+                "balloon_id": balloon_id
             })
 
     def storeRCA(self):
