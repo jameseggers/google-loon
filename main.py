@@ -1,10 +1,3 @@
-import numpy
-
-def grouper(n, iterable, fillvalue=None):
-    "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
-    args = [iter(iterable)] * n
-    return izip_longest(fillvalue=fillvalue, *args)
-
 class LoonBalloons:
     def __init__(self):
         self.paramsFile = open('loon.in', 'r').readlines()
