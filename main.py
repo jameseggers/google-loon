@@ -2,6 +2,7 @@ class LoonBalloons:
     def __init__(self):
         self.paramsFile = open('loon.in', 'r').readlines()
         self.params = {}
+        self.balloons = []
         self.startOfWindVectors = 1054
 
     def process(self):
@@ -10,7 +11,17 @@ class LoonBalloons:
         self.storeStartingCell()
         self.storeTargetCell()
         self.storeWindVectors()
+        self.storeBalloons()
         return self.params
+
+    def storeBalloons(self):
+        for balloon_id in range(1, self.params['B']):
+            self.params.append(
+            {
+                position: self.params['startingCell'],
+                altitude: 0,
+                balloon_id: balloon_id
+            })
 
     def storeRCA(self):
         fLineSplited = self.paramsFile[0].split(' ')
