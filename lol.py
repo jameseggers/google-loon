@@ -13,57 +13,70 @@
 # START SIMULATION
 import random
 import math
-# from main import LoonBalloons
+from main import LoonBalloons
 
-# data = LoonBalloons().process()
+data = LoonBalloons().process()
 
 def make_target_cell_map(targetCells, cell_radius, target_cell_map):
 	for cell in targetCells:
 		for i in range(cell[0] - cell_radius, cell[0] + cell_radius):
-			if(i > world_map['C']): break
+			if(i >= world_map['C']): break
 			for j in range(cell[1] - cell_radius, cell[1] + cell_radius):
-				if(j > world_map['R']): continue
+				if(j >= world_map['R']): continue
 				if(in_range((i,j), cell)):
-					print(cell)
+					# print(cell)
 					target_cell_map[i][j] = cell
 
 def update_position(balloon, wind, world_map):
-	print("\n\nUpdating position...\n\n")
-	print(balloon)
-	if(balloon['position'][0] >= world_map['R'] or balloon['position'][1] >= world_map['C']):
-		print("Out of range!")
+	# print("\n\nUpdating position...\n\n")
+	# print(balloon)
+	if(balloon['position'][0] >= world_map['R'] or balloon['position'][1] >= world_map['C'] or balloon['position'][0] < world_map['R']):
+		# print("Out of range!")
 		return
 	balloon['position'] = balloon['position'][0] + wind[balloon['altitude']][balloon['position'][0]][balloon['position'][1]][0] , (balloon['position'][1] + wind[balloon['altitude']][balloon['position'][0]][balloon['position'][1]][1] ) % world_map['C']
 
 def update_altitude(world_map, balloon, balloon_id, activeTargetCells, target_cell_map, wind, output):
-    print("\n\nUpdating ALTITUDE...\n\n")
-    print(balloon)
+    # print("\n\nUpdating ALTITUDE...\n\n")
+    # print(balloon)
     if(exclusively_over_valid_region(balloon, balloon_id, activeTargetCells, target_cell_map)):
+    	# print("Exclusive!")
         keep_in_same_place(balloon, wind, activeTargetCells, target_cell_map)
     else:
+    	# print("spreading!")
         spread(balloon, wind, output)
 
 def exclusively_over_valid_region(balloon, balloon_id, activeTargetCells, target_cell_map):
 	if(balloon['position'][0] >= world_map['R'] or balloon['position'][1] >= world_map['C']):
-		print("Out of range!")
-		return
+		# print("Out of range!")
+		return False
 	target = target_cell_map[balloon['position'][0]][balloon['position'][1]]
+	# print("Target: " + str(target))
 
 	if(target == 0):
+		# print("Not over a valid region")
 		if(balloon_id in active_balloons):
 			# remove from activeTargetCells
 			old_target = active_balloons.pop(balloon_id)
 			# remove from active_balloons
 			del activeTargetCells[old_target]
+		# print("Returning false...")
 		return False
 	elif(target in activeTargetCells):
+		# print("Over a valid region: is exclusive?")
 		if(balloon_id in active_balloons):
-			if(active_balloons.balloon_id == target):
+			# print("balloon is active!")
+			if(active_balloons[balloon_id] == target):
+				# print("Yes!")
 				return True
-		else: False
+			# print("No")
+			return False
+		else: 
+			# print("No")
+			return False
 	else:
 		activeTargetCells[target] = balloon_id
 		active_balloons[balloon_id] = target
+		# print("Yes!")
 		return True
 
 def keep_in_same_place(balloon, wind, activeTargetCells, target_cell_map):
@@ -73,32 +86,37 @@ def keep_in_same_place(balloon, wind, activeTargetCells, target_cell_map):
 def spread(balloon, wind, output):
 	random_int = random.randint(-1, 1)
 	while(not safe(balloon, random_int)):
+		# print("Still not safe")
 		random_int = random.randint(-1, 1)
 	balloon['altitude'] += random_int
 
 def safe(balloon, random_int):
-	if(balloon['altitude'] + random_int > world_map['A'] or balloon['altitude'] + random_int < 1): return False
+	if(balloon['altitude'] + random_int >= world_map['A'] or balloon['altitude'] + random_int < 1): return False
+	new_position = balloon['position'][0] + wind[balloon['altitude'] + random_int][balloon['position'][0]][balloon['position'][1]][0] , (balloon['position'][1] + wind[balloon['altitude'] + random_int][balloon['position'][0]][balloon['position'][1]][1]) % world_map['C']
+	# print("New position will be: " + str(new_position))
+	if(new_position[0] >= world_map['R'] or new_position[1] >= world_map['C'] or new_position[0] < 1 or new_position[1] < 1): return False
 	return True
 
 def search_A_star(balloon, activeTargetCells, wind, target_cell_map):
+	# print("A* search")
 	target = target_cell_map[balloon['position'][0]][balloon['position'][1]]
 	node = Node(balloon['position'], balloon['altitude'], 'root', 0, 0, heuristic(balloon['position'], target_cell_map))
 	frontier = [node]
-	explored = {}
+	explored = []
 	optimal_path = {'node': node, 'value': 0}
 
 	node_counter = 0
-	while(frontier.size > 0 and node_counter < NODE_COUNTER_LIMIT):
+	while(len(frontier) > 0 and node_counter < NODE_COUNTER_LIMIT):
 		node = frontier.pop()
 		node_counter += 1
 
 		if(goal_test(node, target, target_cell_map)):
-			path_value = path_value(node, target, target_cell_map)
-			if(value > optimal_path.value):
+			pathvalue = path_value(node, target, target_cell_map)
+			if(pathvalue > optimal_path['value']):
 				optimal_path['node'] = node
-				optimal_path['value'] = path_value
+				optimal_path['value'] = pathvalue
 
-		explored.add(node)
+		explored.append(node)
 
 		children = generate_children(node, target, wind)
 
@@ -108,23 +126,25 @@ def search_A_star(balloon, activeTargetCells, wind, target_cell_map):
 			elif(child in frontier):
 					replace_if_better(child, frontier)
 
-	if(optimal_path.value == 0): return safe_move(balloon)
-	return extract_move(optimal_path)
+	if(optimal_path['value'] == 0): return safe_move(balloon)
+	move = 1
+	extract_move(optimal_path, move)
+	return move
 
 def in_range(position, target_cell):
 	if(((abs(position[0]) - abs(target_cell[0]))^2 + (abs(position[1]) - abs(target_cell[1]))^2) <= cell_radius): 
-		print("In range!")
+		# print("In range!")
 		return True
 	return False
 
 def heuristic(position, target_cell_map):
 	# Use SLD heuristic
 	target = target_cell_map[position[0]][position[1]]
-	return math.sqrt((position[0] - target[0])^2 + (position[1] - target[1])^2)
+	return math.sqrt(abs((position[0] - target[0])^2 + (position[1] - target[1])^2))
 
 
 def goal_test(node, target, target_cell_map):
-	if( target_cell_map[node['position'][0]][node['position'][1]] == target): return True
+	if( target_cell_map[node.position[0]][node.position[1]] == target): return True
 	return False
 
 def path_value(node, target, target_cell_map):	
@@ -137,12 +157,15 @@ def path_value(node, target, target_cell_map):
 
 def generate_children(node, target, wind):
 	moves = [-1, 0, 1] # a move is an altitude change
+	children = []
 	for move in moves:
 		# Check if safe move
-		new_position = node.position[0] + wind[node.altitude][node.position[0]][node.position[1]][0] , (node.position[1] + wind[node.altitude][node.position[0]][node.position[1]][1] ) % world_map.C
-		cost = sqrt((new_position[0] - target[0])^2 + (new_position[1] - target[1])^2)
+		if(node.altitude + move >= world_map['A'] or node.altitude + move < 1): continue
+		new_position = node.position[0] + wind[node.altitude + move][node.position[0]][node.position[1]][0] , (node.position[1] + wind[node.altitude + move][node.position[0]][node.position[1]][1]) % world_map['C']
+		
+		cost = math.sqrt(abs((new_position[0] - target[0])^2 + (new_position[1] - target[1])^2))
 		child = Node(new_position, node.altitude + move, node, move, node.cost + cost, heuristic(node.position, target_cell_map))
-		children.add(child)
+		children.append(child)
 	return children
 
 def add_to_frontier(frontier, child):
@@ -164,12 +187,12 @@ def safe_move(balloon, wind):
 		random_int = random.randint(-1, 1)
 	return random_int	
 
-def extract_move(optimal_path):
-	node = optimal_path.node
+def extract_move(optimal_path, move):
+	node = optimal_path['node']
 	while(node.parent != 'root'):
 		node = node.parent
 		move = node.move
-	return move
+	return
 
 
 class Node:
@@ -179,87 +202,90 @@ class Node:
 		self.parent = parent
 		self.move = move
 		self.cost = cost
-		self.heursitc = heursitc
-
+		self.heuristic = heuristic
 
 T = 1000
-# cell_radius = data.V;
-cell_radius = 1
-# world_map = {R: data['R'], C: data['C'], A: data['A']}
-world_map = {'R': 10, 'C': 10, 'A': 6}
-balloons = [{'position': (0,0), 'altitude': 0, 'balloon_id': 0}, {'position': (0,0), 'altitude': 0, 'balloon_id': 1}, {'position': (0,0), 'altitude': 0, 'balloon_id': 2}]
-# targetCells = [(x,y), (x,y),]
-targetCells = [(3,2), (9,4)]
+# cell_radius = 5
+cell_radius = data.V
+# world_map = {'R': 10, 'C': 10, 'A': 6}
+world_map = data.world_map
+# balloons = [{'position': (4,4), 'altitude': 0, 'balloon_id': 0}, {'position': (4,4), 'altitude': 0, 'balloon_id': 1}, {'position': (4,4), 'altitude': 0, 'balloon_id': 2}]
+balloons = data.balloons
+# targetCells = [(3,2), (9,4)]
+targetCells = data.targetCells
 activeTargetCells = { }
 active_balloons = { }
-wind = [[[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)], 
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)]],
+# wind = [[[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)], 
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)]],
 
-[[(3,-1), (1,2), (1,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (-1,3), (1,-3)], 
-[(3,1), (1,2), (2,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
-[(4,1), (1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,1), (1,0), (1,3), (1,-3)],
-[(2,-1), (-1,2), (3,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (1,-3)],
-[(1,-1), (-1,0), (1,0), (3,-2), (-0,2), (1,-1), (-1,1), (2,0), (1,3), (1,-3)],
-[(1,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
-[(-3,1), (1,2), (5,1), (3,-2), (0,-2), (-1,1), (-1,1), (0,0), (1,3), (1,-3)],
-[(0,-1), (-1,0), (-1,1), (3,-2), (0,2), (1,-1), (-1,0), (1,0), (-1,-3), (-1,-3)],
-[(0,1), (-2,2), (-1,1), (3,-2), (-0,2), (-1,-1), (-1,0), (1,0), (1,3), (1,-3)],
-[(-2,1), (-1,2), (-1,1), (3,-2), (0,2), (0,-1), (-1,1), (1,0), (1,-3), (1,-3)]],
+# [[(3,-1), (1,2), (1,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (-1,3), (1,-3)], 
+# [(3,1), (1,2), (2,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
+# [(4,1), (1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,1), (1,0), (1,3), (1,-3)],
+# [(2,-1), (-1,2), (3,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (1,-3)],
+# [(1,-1), (-1,0), (1,0), (3,-2), (-0,2), (1,-1), (-1,1), (2,0), (1,3), (1,-3)],
+# [(1,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
+# [(-3,1), (1,2), (5,1), (3,-2), (0,-2), (-1,1), (-1,1), (0,0), (1,3), (1,-3)],
+# [(0,-1), (-1,0), (-1,1), (3,-2), (0,2), (1,-1), (-1,0), (1,0), (-1,-3), (-1,-3)],
+# [(0,1), (-2,2), (-1,1), (3,-2), (-0,2), (-1,-1), (-1,0), (1,0), (1,3), (1,-3)],
+# [(-2,1), (-1,2), (-1,1), (3,-2), (0,2), (0,-1), (-1,1), (1,0), (1,-3), (1,-3)]],
 
-[[(3,-1), (1,2), (1,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (-1,3), (1,-3)], 
-[(3,1), (1,2), (2,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
-[(4,1), (1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,1), (1,0), (1,3), (1,-3)],
-[(2,-1), (-1,2), (3,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (1,-3)],
-[(1,-1), (-1,0), (1,0), (3,-2), (-0,2), (1,-1), (-1,1), (2,0), (1,3), (1,-3)],
-[(1,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
-[(-3,1), (1,2), (5,1), (3,-2), (0,-2), (-1,1), (-1,1), (0,0), (1,3), (1,-3)],
-[(0,-1), (-1,0), (-1,1), (3,-2), (0,2), (1,-1), (-1,0), (1,0), (-1,-3), (-1,-3)],
-[(0,1), (-2,2), (-1,1), (3,-2), (-0,2), (-1,-1), (-1,0), (1,0), (1,3), (1,-3)],
-[(-2,1), (-1,2), (-1,1), (3,-2), (0,2), (0,-1), (-1,1), (1,0), (1,-3), (1,-3)]],
+# [[(3,-1), (1,2), (1,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (-1,3), (1,-3)], 
+# [(3,1), (1,2), (2,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
+# [(4,1), (1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,1), (1,0), (1,3), (1,-3)],
+# [(2,-1), (-1,2), (3,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (1,-3)],
+# [(1,-1), (-1,0), (1,0), (3,-2), (-0,2), (1,-1), (-1,1), (2,0), (1,3), (1,-3)],
+# [(1,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
+# [(-3,1), (1,2), (5,1), (3,-2), (0,-2), (-1,1), (-1,1), (0,0), (1,3), (1,-3)],
+# [(0,-1), (-1,0), (-1,1), (3,-2), (0,2), (1,-1), (-1,0), (1,0), (-1,-3), (-1,-3)],
+# [(0,1), (-2,2), (-1,1), (3,-2), (-0,2), (-1,-1), (-1,0), (1,0), (1,3), (1,-3)],
+# [(-2,1), (-1,2), (-1,1), (3,-2), (0,2), (0,-1), (-1,1), (1,0), (1,-3), (1,-3)]],
 
-[[(3,-1), (1,2), (1,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (-1,3), (1,-3)], 
-[(3,1), (1,2), (2,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
-[(4,1), (1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,1), (1,0), (1,3), (1,-3)],
-[(2,-1), (-1,2), (3,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (1,-3)],
-[(1,-1), (-1,0), (1,0), (3,-2), (-0,2), (1,-1), (-1,1), (2,0), (1,3), (1,-3)],
-[(1,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
-[(-3,1), (1,2), (5,1), (3,-2), (0,-2), (-1,1), (-1,1), (0,0), (1,3), (1,-3)],
-[(0,-1), (-1,0), (-1,1), (3,-2), (0,2), (1,-1), (-1,0), (1,0), (-1,-3), (-1,-3)],
-[(0,1), (-2,2), (-1,1), (3,-2), (-0,2), (-1,-1), (-1,0), (1,0), (1,3), (1,-3)],
-[(-2,1), (-1,2), (-1,1), (3,-2), (0,2), (0,-1), (-1,1), (1,0), (1,-3), (1,-3)]],
+# [[(3,-1), (1,2), (1,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (-1,3), (1,-3)], 
+# [(3,1), (1,2), (2,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
+# [(4,1), (1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,1), (1,0), (1,3), (1,-3)],
+# [(2,-1), (-1,2), (3,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (1,-3)],
+# [(1,-1), (-1,0), (1,0), (3,-2), (-0,2), (1,-1), (-1,1), (2,0), (1,3), (1,-3)],
+# [(1,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
+# [(-3,1), (1,2), (5,1), (3,-2), (0,-2), (-1,1), (-1,1), (0,0), (1,3), (1,-3)],
+# [(0,-1), (-1,0), (-1,1), (3,-2), (0,2), (1,-1), (-1,0), (1,0), (-1,-3), (-1,-3)],
+# [(0,1), (-2,2), (-1,1), (3,-2), (-0,2), (-1,-1), (-1,0), (1,0), (1,3), (1,-3)],
+# [(-2,1), (-1,2), (-1,1), (3,-2), (0,2), (0,-1), (-1,1), (1,0), (1,-3), (1,-3)]],
 
-[[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)], 
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
-[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)]],
+# [[(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)], 
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)],
+# [(0,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,3), (-1,-3)]],
 
-[[(3,-1), (1,2), (1,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (-1,3), (1,-3)], 
-[(3,1), (1,2), (2,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
-[(4,1), (1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,1), (1,0), (1,3), (1,-3)],
-[(2,-1), (-1,2), (3,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (1,-3)],
-[(1,-1), (-1,0), (1,0), (3,-2), (-0,2), (1,-1), (-1,1), (2,0), (1,3), (1,-3)],
-[(1,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
-[(-3,1), (1,2), (5,1), (3,-2), (0,-2), (-1,1), (-1,1), (0,0), (1,3), (1,-3)],
-[(0,-1), (-1,0), (-1,1), (3,-2), (0,2), (1,-1), (-1,0), (1,0), (-1,-3), (-1,-3)],
-[(0,1), (-2,2), (-1,1), (3,-2), (-0,2), (-1,-1), (-1,0), (1,0), (1,3), (1,-3)],
-[(-2,1), (-1,2), (-1,1), (3,-2), (0,2), (0,-1), (-1,1), (1,0), (1,-3), (1,-3)]]]
+# [[(3,-1), (1,2), (1,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (-1,3), (1,-3)], 
+# [(3,1), (1,2), (2,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
+# [(4,1), (1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,1), (1,0), (1,3), (1,-3)],
+# [(2,-1), (-1,2), (3,0), (3,-2), (0,2), (1,-1), (-1,0), (0,0), (1,-3), (1,-3)],
+# [(1,-1), (-1,0), (1,0), (3,-2), (-0,2), (1,-1), (-1,1), (2,0), (1,3), (1,-3)],
+# [(1,1), (-1,2), (1,1), (3,-2), (0,2), (-1,-1), (-1,0), (0,0), (1,-3), (-1,-3)],
+# [(-3,1), (1,2), (5,1), (3,-2), (0,-2), (-1,1), (-1,1), (0,0), (1,3), (1,-3)],
+# [(0,-1), (-1,0), (-1,1), (3,-2), (0,2), (1,-1), (-1,0), (1,0), (-1,-3), (-1,-3)],
+# [(0,1), (-2,2), (-1,1), (3,-2), (-0,2), (-1,-1), (-1,0), (1,0), (1,3), (1,-3)],
+# [(-2,1), (-1,2), (-1,1), (3,-2), (0,2), (0,-1), (-1,1), (1,0), (1,-3), (1,-3)]]]
 
 
 output = open('output', 'w')
+
+NODE_COUNTER_LIMIT = 100
+points = 0
 
 w, h = world_map['R'], world_map['C']
 target_cell_map = [[0 for x in range(w)] for y in range(h)] 
@@ -278,4 +304,11 @@ for timestep in range(0, T):
 	for balloon in balloons:
 		balloon_id = balloon['balloon_id']
 		update_altitude(world_map, balloon, balloon_id, activeTargetCells, target_cell_map, wind, output)
+
+	for balloon in balloons:
+		if(exclusively_over_valid_region(balloon, balloon['balloon_id'], activeTargetCells, target_cell_map)):
+			print("hurrah! Pass go and take a point!")
+			points += 1
+	print("Timestep:\t" + str(timestep))
+	print("Points:  \t" + str(points) + "\n")
 
