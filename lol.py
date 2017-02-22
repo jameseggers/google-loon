@@ -13,11 +13,11 @@
 # START SIMULATION
 import random
 
-cell_radius = ;
+cell_radius = data.V;
 world_map = {R: , C: , A: }
 balloons = [{position: (x,y), altitude: A}, {position: (x,y), altitude: A},]
 targetCells = [(x,y), (x,y),]
-activeTargetCells = {(x,y), (x,y)}
+activeTargetCells = { balloon_id: (x,y), balloon_id: (x,y) ... }
 active_balloons = { balloon_id: (cell_position),  }
 wind = [[[(0,1), (-1,2)], [(0,1), (-1,2)] ], [[(0,1), (-1,2)], [(0,1), (-1,2)] ]]
 output = file.open(output.txt, 'w')
@@ -57,7 +57,9 @@ def exclusively_over_valid_region(balloon, balloon_id, activeTargetCells, target
 	if(target == 0):
 		if(balloon_id in active_balloons):
 			# remove from activeTargetCells
+			old_target = active_balloons.pop(balloon_id)
 			# remove from active_balloons
+			del activeTargetCells[old_target]
 		return false
 	elif(target in activeTargetCells):
 		if(balloon_id in active_balloons):
@@ -65,7 +67,7 @@ def exclusively_over_valid_region(balloon, balloon_id, activeTargetCells, target
 				return true
 		else false
 	else:
-		activeTargetCells.add(target)
+		activeTargetCells[target] = balloon_id
 		active_balloons[balloon_id] = target
 		return true
 
