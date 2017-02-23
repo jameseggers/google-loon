@@ -70,4 +70,4 @@ class LoonBalloons:
 
                 self.params['windVectors'][altitude-1][row].append(vectors)
 
-print LoonBalloons().process()
+LoonBalloons().process()
