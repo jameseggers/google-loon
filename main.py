@@ -12,6 +12,7 @@ class LoonBalloons:
         self.storeTargetCell()
         self.storeWindVectors()
         self.storeBalloons()
+        self.params['balloons'] = self.balloons
         return self.params
 
     def storeBalloons(self):
@@ -42,10 +43,10 @@ class LoonBalloons:
 
     def storeTargetCell(self):
         self.params['targetCells'] = []
-        counter = 0
+        counter = 3
 
         while counter <= self.params['L']:
-            splited = self.paramsFile[counter+3].split(' ')
+            splited = self.paramsFile[counter].split(' ')
             self.params['targetCells'].append((int(splited[0]), int(splited[1])))
             counter += 1
 
